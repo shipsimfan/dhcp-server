@@ -15,8 +15,10 @@ enum RuntimeError {
 #[derive(Debug)]
 enum RequestError {
     ReadRequestError(std::io::Error),
-    ParsePacketError,
+    ParsePacketError(dhcp::PacketParseError),
 }
+
+const PORT: u16 = 67;
 
 fn print_fatal_error(error: RuntimeError) -> ! {
     eprintln!("\x1B[31;1mFatal Error:\x1B[0m {}", error);
@@ -39,10 +41,12 @@ fn run() -> Result<(), RuntimeError> {
     let mut server = server::DHCPServer::new();
 
     // Create UDP Server
-    let mut socket = match UdpSocket::bind("0.0.0.0:6767") {
+    let mut socket = match UdpSocket::bind(format!("0.0.0.0:{}", PORT)) {
         Ok(socket) => socket,
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
+
+    println!("DHCP Server listening on port {}", PORT);
 
     // Handle requests
     loop {
@@ -65,18 +69,14 @@ fn handle_request(
     };
 
     // Convert to correct size packet
-    let mut packet = Vec::with_capacity(packet_size);
-    for i in 0..packet_size {
-        packet.push(buffer[i]);
-    }
-
-    // Parse packet
-    let packet = match dhcp::DHCPPacket::parse(packet.as_slice()) {
-        Ok(packet) => packet,
-        Err(()) => return Err(RequestError::ParsePacketError),
-    };
+    let buffer = &buffer[..packet_size];
 
     println!("Packet recieved from {}", source);
+    println!("{:?}", buffer);
+
+    // Parse packet
+    let packet = dhcp::DHCPPacket::parse(buffer)?;
+
     println!("{}", packet);
 
     Ok(())
@@ -105,8 +105,15 @@ impl std::fmt::Display for RequestError {
             match self {
                 RequestError::ReadRequestError(error) =>
                     format!("Unable to read request ({})", error),
-                RequestError::ParsePacketError => format!("Unable to parse packet"),
+                RequestError::ParsePacketError(error) =>
+                    format!("Unable to parse packet ({})", error),
             }
         )
+    }
+}
+
+impl From<dhcp::PacketParseError> for RequestError {
+    fn from(error: dhcp::PacketParseError) -> Self {
+        RequestError::ParsePacketError(error)
     }
 }

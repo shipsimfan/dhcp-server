@@ -21,6 +21,14 @@ pub struct DHCPPacket {
     options: Vec<DHCPOption>,
 }
 
+#[derive(Debug)]
+pub enum PacketParseError {
+    TooShort,
+    NoEndOption,
+    InvalidOptionLength,
+    InvalidMagic,
+}
+
 fn slice_to_u16(slice: &[u8]) -> Result<u16, ()> {
     if slice.len() < 2 {
         Err(())
@@ -41,18 +49,19 @@ fn slice_to_u32(slice: &[u8]) -> Result<u32, ()> {
 }
 
 impl DHCPPacket {
-    pub fn parse(packet: &[u8]) -> Result<Self, ()> {
+    pub fn parse(packet: &[u8]) -> Result<Self, PacketParseError> {
         if packet.len() < 241 {
-            return Err(());
+            return Err(PacketParseError::TooShort);
         }
 
+        // Parse basic information
         let message_type = packet[0];
         let hardware_type = packet[1];
         let hardware_address_length = packet[2];
         let hops = packet[3];
-        let transaction_id = slice_to_u32(&packet[4..])?;
-        let seconds = slice_to_u16(&packet[8..])?;
-        let flags = slice_to_u16(&packet[10..])?;
+        let transaction_id = slice_to_u32(&packet[4..]).unwrap();
+        let seconds = slice_to_u16(&packet[8..]).unwrap();
+        let flags = slice_to_u16(&packet[10..]).unwrap();
         let client_ip_address = IPAddress::new([packet[12], packet[13], packet[14], packet[15]]);
         let your_ip_address = IPAddress::new([packet[16], packet[17], packet[18], packet[19]]);
         let server_ip_address = IPAddress::new([packet[20], packet[21], packet[22], packet[23]]);
@@ -63,11 +72,12 @@ impl DHCPPacket {
             packet[42], packet[43],
         ];
 
+        // Parse options
         let mut options = Vec::new();
         let mut i = 240;
         loop {
             if i >= packet.len() {
-                return Err(());
+                return Err(PacketParseError::NoEndOption);
             }
 
             let class = packet[i];
@@ -77,7 +87,7 @@ impl DHCPPacket {
 
             i += 1;
             if i >= packet.len() {
-                return Err(());
+                return Err(PacketParseError::NoEndOption);
             }
 
             let length = packet[i];
@@ -86,7 +96,7 @@ impl DHCPPacket {
             for _ in 0..length {
                 i += 1;
                 if i >= packet.len() {
-                    return Err(());
+                    return Err(PacketParseError::InvalidOptionLength);
                 }
 
                 value.push(packet[i]);
@@ -95,9 +105,8 @@ impl DHCPPacket {
             options.push(DHCPOption::new(class, value))
         }
 
-        if packet[236] != b'D' || packet[237] != b'H' || packet[238] != b'C' || packet[239] != b'P'
-        {
-            Err(())
+        if packet[236] != 99 || packet[237] != 130 || packet[238] != 83 || packet[239] != 99 {
+            Err(PacketParseError::InvalidMagic)
         } else {
             Ok(DHCPPacket {
                 message_type,
@@ -157,5 +166,22 @@ impl std::fmt::Display for DHCPPacket {
 impl std::fmt::Display for DHCPOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} - {:?}", self.class, self.value)
+    }
+}
+
+impl std::error::Error for PacketParseError {}
+
+impl std::fmt::Display for PacketParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                PacketParseError::TooShort => "Too short",
+                PacketParseError::NoEndOption => "No end option",
+                PacketParseError::InvalidOptionLength => "Invalid option length",
+                PacketParseError::InvalidMagic => "Invalid magic value",
+            }
+        )
     }
 }
