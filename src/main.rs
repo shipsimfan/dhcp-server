@@ -1,8 +1,11 @@
 use std::{net::UdpSocket, process::exit};
 
+mod address;
 mod config;
 mod dhcp;
 mod server;
+
+pub use address::*;
 
 #[derive(Debug)]
 enum RuntimeError {
@@ -36,7 +39,7 @@ fn run() -> Result<(), RuntimeError> {
     let mut server = server::DHCPServer::new();
 
     // Create UDP Server
-    let mut socket = match UdpSocket::bind("0.0.0.0:67") {
+    let mut socket = match UdpSocket::bind("0.0.0.0:6767") {
         Ok(socket) => socket,
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
@@ -52,7 +55,7 @@ fn run() -> Result<(), RuntimeError> {
 
 fn handle_request(
     socket: &mut UdpSocket,
-    server: &mut server::DHCPServer,
+    _server: &mut server::DHCPServer,
 ) -> Result<(), RequestError> {
     // Read packet
     let mut buffer = [0; 576];
@@ -74,6 +77,7 @@ fn handle_request(
     };
 
     println!("Packet recieved from {}", source);
+    println!("{}", packet);
 
     Ok(())
 }

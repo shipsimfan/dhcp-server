@@ -1,4 +1,6 @@
-use crate::server::{IPAddress, MACAdddress};
+#![allow(unused)]
+
+use crate::{IPAddress, MACAdddress};
 
 pub const LEASE_START_IP: IPAddress = IPAddress::new([10, 128, 0, 1]);
 pub const GATEWAY_IP: IPAddress = IPAddress::new([10, 0, 0, 1]);

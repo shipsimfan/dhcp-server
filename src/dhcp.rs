@@ -1,8 +1,7 @@
-use crate::server::IPAddress;
+use crate::IPAddress;
 
 struct DHCPOption {
     class: u8,
-    length: u8,
     value: Vec<u8>,
 }
 
@@ -93,7 +92,7 @@ impl DHCPPacket {
                 value.push(packet[i]);
             }
 
-            options.push(DHCPOption::new(class, length, value))
+            options.push(DHCPOption::new(class, value))
         }
 
         if packet[236] != b'D' || packet[237] != b'H' || packet[238] != b'C' || packet[239] != b'P'
@@ -120,11 +119,43 @@ impl DHCPPacket {
 }
 
 impl DHCPOption {
-    pub fn new(class: u8, length: u8, value: Vec<u8>) -> Self {
-        DHCPOption {
-            class,
-            length,
-            value,
+    pub fn new(class: u8, value: Vec<u8>) -> Self {
+        DHCPOption { class, value }
+    }
+}
+
+impl std::fmt::Display for DHCPPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Message Type: {}\n", self.message_type)?;
+        write!(f, "Hardware Type: {}\n", self.hardware_type)?;
+        write!(
+            f,
+            "Hardware Address Length: {}\n",
+            self.hardware_address_length
+        )?;
+        write!(f, "Hops: {}\n", self.hops)?;
+        write!(f, "Transaction ID: {}\n", self.transaction_id)?;
+        write!(f, "Seconds: {}\n", self.seconds)?;
+        write!(f, "Flags: {}\n", self.flags)?;
+        write!(f, "Client I.P. Address: {}\n", self.client_ip_address)?;
+        write!(f, "Your I.P. Address: {}\n", self.your_ip_address)?;
+        write!(f, "Server I.P. Address: {}\n", self.server_ip_address)?;
+        write!(f, "Gateway I.P. Address: {}\n", self.gateway_ip_address)?;
+        write!(
+            f,
+            "Client Hardware Address: {:?}\n",
+            self.client_hardware_address
+        )?;
+        write!(f, "Options:\n")?;
+        for option in &self.options {
+            write!(f, "    {}\n", option)?;
         }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for DHCPOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {:?}", self.class, self.value)
     }
 }
