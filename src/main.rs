@@ -72,7 +72,6 @@ fn handle_request(
     let buffer = &buffer[..packet_size];
 
     println!("Packet recieved from {}", source);
-    println!("{:?}", buffer);
 
     // Parse packet
     let packet = dhcp::DHCPPacket::parse(buffer)?;

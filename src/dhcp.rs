@@ -93,13 +93,14 @@ impl DHCPPacket {
             let length = packet[i];
 
             let mut value = Vec::new();
+            i += 1;
             for _ in 0..length {
-                i += 1;
                 if i >= packet.len() {
                     return Err(PacketParseError::InvalidOptionLength);
                 }
 
                 value.push(packet[i]);
+                i += 1;
             }
 
             options.push(DHCPOption::new(class, value))
