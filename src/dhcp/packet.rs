@@ -97,6 +97,52 @@ impl DHCPPacket {
             })
         }
     }
+
+    pub fn message_type(&self) -> MessageType {
+        self.message_type
+    }
+
+    pub fn get_option(&self, option_class: DHCPOptionClass) -> Option<&[u8]> {
+        for option in &self.options {
+            if option.class() == option_class {
+                return Some(option.value());
+            }
+        }
+
+        None
+    }
+
+    pub fn generate(&self) -> Vec<u8> {
+        // First four bytes
+        let mut vec = vec![
+            self.message_type.generate(),
+            self.hardware_type.generate(),
+            self.hardware_address_length,
+            self.hops,
+        ];
+
+        // Multibyte parameters
+        vec.extend_from_slice(&super::u32_to_slice(self.transaction_id));
+        vec.extend_from_slice(&super::u16_to_slice(self.seconds));
+        vec.extend_from_slice(&super::u16_to_slice(self.flags));
+        vec.extend_from_slice(self.client_ip_address.as_slice());
+        vec.extend_from_slice(self.your_ip_address.as_slice());
+        vec.extend_from_slice(self.server_ip_address.as_slice());
+        vec.extend_from_slice(self.gateway_ip_address.as_slice());
+        vec.extend_from_slice(&self.client_hardware_address);
+
+        // Server name and bootfile
+        for _ in 0..64 + 128 {
+            vec.push(0);
+        }
+
+        // Options
+        for option in &self.options {
+            vec.extend_from_slice(option.generate().as_slice())
+        }
+
+        vec
+    }
 }
 
 impl std::fmt::Display for DHCPPacket {

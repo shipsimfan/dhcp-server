@@ -46,6 +46,31 @@ impl HardwareType {
             _ => HardwareType::Other(value),
         }
     }
+
+    pub fn generate(&self) -> u8 {
+        match self {
+            HardwareType::Ethernet => 1,
+            HardwareType::ExperimentalEthernet => 2,
+            HardwareType::AmateurRadioAX25 => 3,
+            HardwareType::ProteonProNetTokenRing => 4,
+            HardwareType::Chaos => 5,
+            HardwareType::IEEE802Networks => 6,
+            HardwareType::ARCNET => 7,
+            HardwareType::Hyperchannel => 8,
+            HardwareType::Lanstar => 9,
+            HardwareType::AutonetShortAddress => 10,
+            HardwareType::LocalTalk => 11,
+            HardwareType::LocalNet => 12,
+            HardwareType::UltraLink => 13,
+            HardwareType::SMDS => 14,
+            HardwareType::FrameRelay => 15,
+            HardwareType::AsynchronousTransmissionMode => 16,
+            HardwareType::HDLC => 17,
+            HardwareType::FibreChannel => 18,
+            HardwareType::SerialLine => 20,
+            HardwareType::Other(value) => *value,
+        }
+    }
 }
 
 impl std::fmt::Display for HardwareType {

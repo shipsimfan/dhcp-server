@@ -16,6 +16,8 @@ enum RuntimeError {
 enum RequestError {
     ReadRequestError(std::io::Error),
     ParsePacketError(dhcp::PacketParseError),
+    HandlePacketError(server::HandlePacketError),
+    WriteResponseError(std::io::Error),
 }
 
 const PORT: u16 = 67;
@@ -59,7 +61,7 @@ fn run() -> Result<(), RuntimeError> {
 
 fn handle_request(
     socket: &mut UdpSocket,
-    _server: &mut server::DHCPServer,
+    server: &mut server::DHCPServer,
 ) -> Result<(), RequestError> {
     // Read packet
     let mut buffer = [0; 576];
@@ -71,12 +73,25 @@ fn handle_request(
     // Convert to correct size packet
     let buffer = &buffer[..packet_size];
 
-    println!("Packet recieved from {}", source);
-
     // Parse packet
     let packet = dhcp::DHCPPacket::parse(buffer)?;
 
-    println!("{}", packet);
+    // Handle packet
+    match server.handle_packet(packet)? {
+        Some((response_packet, target)) => {
+            match socket.send_to(
+                response_packet.generate().as_slice(),
+                match target {
+                    Some(target) => target,
+                    None => source,
+                },
+            ) {
+                Ok(_) => {}
+                Err(error) => return Err(RequestError::WriteResponseError(error)),
+            }
+        }
+        None => {}
+    }
 
     Ok(())
 }
@@ -106,6 +121,10 @@ impl std::fmt::Display for RequestError {
                     format!("Unable to read request ({})", error),
                 RequestError::ParsePacketError(error) =>
                     format!("Unable to parse packet ({})", error),
+                RequestError::HandlePacketError(error) =>
+                    format!("Error while handling packet - {}", error),
+                RequestError::WriteResponseError(error) =>
+                    format!("Unable to write response ({})", error),
             }
         )
     }
@@ -114,5 +133,11 @@ impl std::fmt::Display for RequestError {
 impl From<dhcp::PacketParseError> for RequestError {
     fn from(error: dhcp::PacketParseError) -> Self {
         RequestError::ParsePacketError(error)
+    }
+}
+
+impl From<server::HandlePacketError> for RequestError {
+    fn from(error: server::HandlePacketError) -> Self {
+        RequestError::HandlePacketError(error)
     }
 }

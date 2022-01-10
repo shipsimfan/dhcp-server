@@ -1,3 +1,4 @@
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum MessageType {
     Request,
     Reply,
@@ -9,6 +10,13 @@ impl MessageType {
             1 => Some(MessageType::Request),
             2 => Some(MessageType::Reply),
             _ => None,
+        }
+    }
+
+    pub fn generate(&self) -> u8 {
+        match self {
+            MessageType::Request => 1,
+            MessageType::Reply => 2,
         }
     }
 }

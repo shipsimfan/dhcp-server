@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::{IPAddress, MACAdddress};
 
 pub const LEASE_START_IP: IPAddress = IPAddress::new([10, 128, 0, 1]);

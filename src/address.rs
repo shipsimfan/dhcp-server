@@ -1,12 +1,16 @@
 #[derive(Clone, Copy)]
 pub struct IPAddress([u8; 4]);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MACAdddress([u8; 6]);
 
 impl IPAddress {
     pub const fn new(address: [u8; 4]) -> Self {
         IPAddress(address)
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
     }
 }
 

@@ -52,6 +52,22 @@ impl DHCPOption {
     pub fn value(&self) -> &[u8] {
         self.value.as_slice()
     }
+
+    pub fn generate(&self) -> Vec<u8> {
+        let mut vec = vec![self.class.generate()];
+
+        if self.class == DHCPOptionClass::End {
+            return vec;
+        }
+
+        vec.push(self.value.len() as u8);
+
+        for value in &self.value {
+            vec.push(*value);
+        }
+
+        vec
+    }
 }
 
 impl std::fmt::Display for DHCPOption {

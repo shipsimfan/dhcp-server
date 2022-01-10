@@ -1,27 +1,11 @@
-#![allow(unused)]
-
 use crate::{IPAddress, MACAdddress};
-use std::{collections::HashMap, time::Instant};
+use std::time::Instant;
 
 struct LeasedAddress(IPAddress, MACAdddress);
 
-struct Leases {
+pub struct Leases {
     leases: [Option<(MACAdddress, Instant)>; 254],
     next_available_ip: IPAddress,
-}
-
-pub struct DHCPServer {
-    leases: Leases,
-    reserved: HashMap<MACAdddress, IPAddress>,
-}
-
-impl DHCPServer {
-    pub fn new() -> Self {
-        DHCPServer {
-            leases: Leases::new(),
-            reserved: HashMap::new(),
-        }
-    }
 }
 
 impl Leases {
