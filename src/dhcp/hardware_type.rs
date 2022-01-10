@@ -18,11 +18,12 @@ pub enum HardwareType {
     HDLC,
     FibreChannel,
     SerialLine,
+    Other(u8),
 }
 
 impl HardwareType {
-    pub fn parse(value: u8) -> Option<Self> {
-        Some(match value {
+    pub fn parse(value: u8) -> Self {
+        match value {
             1 => HardwareType::Ethernet,
             2 => HardwareType::ExperimentalEthernet,
             3 => HardwareType::AmateurRadioAX25,
@@ -42,8 +43,8 @@ impl HardwareType {
             17 => HardwareType::HDLC,
             18 => HardwareType::FibreChannel,
             20 => HardwareType::SerialLine,
-            _ => return None,
-        })
+            _ => HardwareType::Other(value),
+        }
     }
 }
 
@@ -53,26 +54,27 @@ impl std::fmt::Display for HardwareType {
             f,
             "{}",
             match self {
-                HardwareType::Ethernet => "Ethernet (10Mb)",
-                HardwareType::ExperimentalEthernet => "Experimental Ethernet (3Mb)",
-                HardwareType::AmateurRadioAX25 => "Amateur Radio AX.25",
-                HardwareType::ProteonProNetTokenRing => "Proteon ProNET Token Ring",
-                HardwareType::Chaos => "Chaos",
-                HardwareType::IEEE802Networks => "IEEE 802 Networks",
-                HardwareType::ARCNET => "ARCNET",
-                HardwareType::Hyperchannel => "Hyperchannel",
-                HardwareType::Lanstar => "Lanstar",
-                HardwareType::AutonetShortAddress => "Autonet Short Address",
-                HardwareType::LocalTalk => "LocalTalk",
-                HardwareType::LocalNet => "LocalNet (IBM PCNet or SYTEK LocalNET)",
-                HardwareType::UltraLink => "Ultra link",
-                HardwareType::SMDS => "SMDS",
-                HardwareType::FrameRelay => "Frame Relay",
+                HardwareType::Ethernet => format!("Ethernet (10Mb)"),
+                HardwareType::ExperimentalEthernet => format!("Experimental Ethernet (3Mb)"),
+                HardwareType::AmateurRadioAX25 => format!("Amateur Radio AX.25"),
+                HardwareType::ProteonProNetTokenRing => format!("Proteon ProNET Token Ring"),
+                HardwareType::Chaos => format!("Chaos"),
+                HardwareType::IEEE802Networks => format!("IEEE 802 Networks"),
+                HardwareType::ARCNET => format!("ARCNET"),
+                HardwareType::Hyperchannel => format!("Hyperchannel"),
+                HardwareType::Lanstar => format!("Lanstar"),
+                HardwareType::AutonetShortAddress => format!("Autonet Short Address"),
+                HardwareType::LocalTalk => format!("LocalTalk"),
+                HardwareType::LocalNet => format!("LocalNet (IBM PCNet or SYTEK LocalNET)"),
+                HardwareType::UltraLink => format!("Ultra link"),
+                HardwareType::SMDS => format!("SMDS"),
+                HardwareType::FrameRelay => format!("Frame Relay"),
                 HardwareType::AsynchronousTransmissionMode =>
-                    "Asynchronous Transmission Mode (ATM)",
-                HardwareType::HDLC => "HDLC",
-                HardwareType::FibreChannel => "Fibre Channel",
-                HardwareType::SerialLine => "Serial Line",
+                    format!("Asynchronous Transmission Mode (ATM)"),
+                HardwareType::HDLC => format!("HDLC"),
+                HardwareType::FibreChannel => format!("Fibre Channel"),
+                HardwareType::SerialLine => format!("Serial Line"),
+                HardwareType::Other(value) => format!("Other ({})", value),
             }
         )
     }

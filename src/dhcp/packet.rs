@@ -23,7 +23,6 @@ pub enum PacketParseError {
     NoEndOption,
     InvalidMagic([u8; 4]),
     InvalidMessageType(u8),
-    InvalidHardwareType(u8),
     ParseOptionError(super::ParseOptionError),
 }
 
@@ -38,10 +37,7 @@ impl DHCPPacket {
             Some(message_type) => message_type,
             None => return Err(PacketParseError::InvalidMessageType(packet[0])),
         };
-        let hardware_type = match HardwareType::parse(packet[1]) {
-            Some(hardware_type) => hardware_type,
-            None => return Err(PacketParseError::InvalidHardwareType(packet[1])),
-        };
+        let hardware_type = HardwareType::parse(packet[1]);
         let hardware_address_length = packet[2];
         let hops = packet[3];
         let transaction_id = super::slice_to_u32(&packet[4..]);
@@ -147,8 +143,6 @@ impl std::fmt::Display for PacketParseError {
                     format!("Invalid magic value ({:?})", magic),
                 PacketParseError::InvalidMessageType(message_type) =>
                     format!("Invalid message type ({})", message_type),
-                PacketParseError::InvalidHardwareType(hardware_type) =>
-                    format!("Invalid hardware type ({})", hardware_type),
                 PacketParseError::ParseOptionError(error) =>
                     format!("Unable to parse option ({})", error),
             }

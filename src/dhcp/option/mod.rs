@@ -20,10 +20,7 @@ impl DHCPOption {
             return Err(ParseOptionError::MissingClass);
         }
 
-        let class = match DHCPOptionClass::parse(slice[0]) {
-            Some(class) => class,
-            None => return Err(ParseOptionError::InvalidLength),
-        };
+        let class = DHCPOptionClass::parse(slice[0]);
 
         if class == DHCPOptionClass::End {
             return Ok(DHCPOption {
