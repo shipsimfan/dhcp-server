@@ -18,14 +18,22 @@ impl DHCPOption {
     pub fn parse(slice: &[u8]) -> Result<Self, ParseOptionError> {
         if slice.len() == 0 {
             return Err(ParseOptionError::MissingClass);
-        } else if slice.len() == 1 {
-            return Err(ParseOptionError::MissingLength);
         }
 
         let class = match DHCPOptionClass::parse(slice[0]) {
             Some(class) => class,
             None => return Err(ParseOptionError::InvalidLength),
         };
+
+        if class == DHCPOptionClass::End {
+            return Ok(DHCPOption {
+                class,
+                value: Vec::new(),
+            });
+        } else if slice.len() == 1 {
+            return Err(ParseOptionError::MissingLength);
+        }
+
         let length = slice[1] as usize;
 
         let mut value = Vec::new();
