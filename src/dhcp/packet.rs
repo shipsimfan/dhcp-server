@@ -102,6 +102,22 @@ impl DHCPPacket {
         self.message_type
     }
 
+    pub fn hardware_type(&self) -> HardwareType {
+        self.hardware_type
+    }
+
+    pub fn hardware_address_length(&self) -> u8 {
+        self.hardware_address_length
+    }
+
+    pub fn client_ip_address(&self) -> IPAddress {
+        self.client_ip_address
+    }
+
+    pub fn client_hardware_address(&self) -> &[u8; 16] {
+        &self.client_hardware_address
+    }
+
     pub fn get_option(&self, option_class: DHCPOptionClass) -> Option<&[u8]> {
         for option in &self.options {
             if option.class() == option_class {

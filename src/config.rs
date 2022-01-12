@@ -1,6 +1,7 @@
 use crate::{IPAddress, MACAdddress};
 
 pub const LEASE_START_IP: IPAddress = IPAddress::new([10, 128, 0, 1]);
+pub const LEASE_FINAL_IP: IPAddress = IPAddress::new([10, 255, 255, 254]);
 pub const GATEWAY_IP: IPAddress = IPAddress::new([10, 0, 0, 1]);
 pub const OUR_IP: IPAddress = IPAddress::new([10, 0, 0, 2]);
 
