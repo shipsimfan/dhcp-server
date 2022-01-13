@@ -179,7 +179,10 @@ impl DHCPServer {
                 );
                 packet.add_option(DHCPOptionClass::End, vec![]);
 
-                return Ok(Some((packet, None)));
+                return Ok(Some((
+                    packet,
+                    Some(SocketAddr::from(([255, 255, 255, 255], 68))),
+                )));
             }
             3 => println!("Request message recieved!"),
             4 => println!("Decline message recieved!"),

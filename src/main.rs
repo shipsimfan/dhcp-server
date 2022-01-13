@@ -48,6 +48,11 @@ fn run() -> Result<(), RuntimeError> {
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
 
+    match socket.set_broadcast(true) {
+        Ok(()) => {}
+        Err(error) => return Err(RuntimeError::CreateServerError(error)),
+    };
+
     println!("DHCP Server listening on port {}", PORT);
 
     // Handle requests
