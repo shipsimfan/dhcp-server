@@ -140,7 +140,7 @@ impl DHCPServer {
                     mac_address,
                 );
 
-                packet.add_option(DHCPOptionClass::DHCPMsgType, vec![53]);
+                packet.add_option(DHCPOptionClass::DHCPMsgType, vec![2]);
                 packet.add_option(
                     DHCPOptionClass::DHCPServerID,
                     vec![

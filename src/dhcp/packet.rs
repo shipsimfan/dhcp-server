@@ -211,6 +211,9 @@ impl DHCPPacket {
             vec.push(0);
         }
 
+        // Magic
+        vec.extend_from_slice(&[99, 130, 83, 99]);
+
         // Options
         for option in &self.options {
             vec.extend_from_slice(option.generate().as_slice())
