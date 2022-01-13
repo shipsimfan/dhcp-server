@@ -15,6 +15,10 @@ pub enum ParseOptionError {
 }
 
 impl DHCPOption {
+    pub fn new(class: DHCPOptionClass, value: Vec<u8>) -> Self {
+        DHCPOption { class, value }
+    }
+
     pub fn parse(slice: &[u8]) -> Result<Self, ParseOptionError> {
         if slice.len() == 0 {
             return Err(ParseOptionError::MissingClass);

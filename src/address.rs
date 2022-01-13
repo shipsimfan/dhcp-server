@@ -46,6 +46,10 @@ impl IPAddress {
             self.increament();
         }
     }
+
+    pub fn get(&self, index: usize) -> u8 {
+        self.0[index]
+    }
 }
 
 impl std::fmt::Display for IPAddress {
@@ -81,6 +85,10 @@ impl std::cmp::Ord for IPAddress {
 impl MACAdddress {
     pub const fn new(address: [u8; 6]) -> Self {
         MACAdddress(address)
+    }
+
+    pub fn get(&self, index: usize) -> u8 {
+        self.0[index]
     }
 }
 

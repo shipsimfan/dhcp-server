@@ -130,6 +130,56 @@ impl DHCPServer {
                 };
 
                 // Send offer
+                let mut packet = DHCPPacket::new(
+                    packet.transaction_id(),
+                    packet.flags(),
+                    IPAddress::new([0, 0, 0, 0]),
+                    return_ip,
+                    crate::config::OUR_IP,
+                    packet.gateway_ip_address(),
+                    mac_address,
+                );
+
+                packet.add_option(DHCPOptionClass::DHCPMsgType, vec![53]);
+                packet.add_option(
+                    DHCPOptionClass::DHCPServerID,
+                    vec![
+                        crate::config::OUR_IP.get(0),
+                        crate::config::OUR_IP.get(1),
+                        crate::config::OUR_IP.get(2),
+                        crate::config::OUR_IP.get(3),
+                    ],
+                );
+                packet.add_option(DHCPOptionClass::AddressTime, vec![0x00, 0x02, 0xA3, 0x00]); // 2 Days
+                packet.add_option(DHCPOptionClass::RenewalTime, vec![0x00, 0x01, 0x51, 0x80]); // 1 Day
+                packet.add_option(DHCPOptionClass::RebindingTime, vec![0x00, 0x02, 0x4E, 0xA0]); // 1 Day, 18 Hours
+                packet.add_option(DHCPOptionClass::SubnetMask, vec![255, 0, 0, 0]);
+                packet.add_option(DHCPOptionClass::BroadcastAddress, vec![10, 255, 255, 255]);
+                packet.add_option(
+                    DHCPOptionClass::Gateways,
+                    vec![
+                        crate::config::GATEWAY_IP.get(0),
+                        crate::config::GATEWAY_IP.get(1),
+                        crate::config::GATEWAY_IP.get(2),
+                        crate::config::GATEWAY_IP.get(3),
+                    ],
+                );
+                packet.add_option(DHCPOptionClass::DomainServer, vec![1, 1, 1, 1, 1, 0, 0, 1]);
+                packet.add_option(
+                    DHCPOptionClass::ClientID,
+                    vec![
+                        HardwareType::Ethernet.generate(),
+                        mac_address.get(0),
+                        mac_address.get(1),
+                        mac_address.get(2),
+                        mac_address.get(3),
+                        mac_address.get(4),
+                        mac_address.get(5),
+                    ],
+                );
+                packet.add_option(DHCPOptionClass::End, vec![]);
+
+                return Ok(Some((packet, None)));
             }
             3 => println!("Request message recieved!"),
             4 => println!("Decline message recieved!"),

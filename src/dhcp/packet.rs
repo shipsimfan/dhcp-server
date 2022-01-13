@@ -1,5 +1,5 @@
 use super::{DHCPOption, DHCPOptionClass, HardwareType, MessageType};
-use crate::IPAddress;
+use crate::{IPAddress, MACAdddress};
 
 pub struct DHCPPacket {
     message_type: MessageType,
@@ -27,6 +27,49 @@ pub enum PacketParseError {
 }
 
 impl DHCPPacket {
+    pub fn new(
+        transaction_id: u32,
+        flags: u16,
+        client_ip_address: IPAddress,
+        your_ip_address: IPAddress,
+        server_ip_address: IPAddress,
+        gateway_ip_address: IPAddress,
+        client_hardware_address: MACAdddress,
+    ) -> Self {
+        DHCPPacket {
+            message_type: MessageType::Reply,
+            hardware_type: HardwareType::Ethernet,
+            hardware_address_length: 6,
+            hops: 0,
+            transaction_id,
+            seconds: 0,
+            flags,
+            client_ip_address,
+            your_ip_address,
+            server_ip_address,
+            gateway_ip_address,
+            client_hardware_address: [
+                client_hardware_address.get(0),
+                client_hardware_address.get(1),
+                client_hardware_address.get(2),
+                client_hardware_address.get(3),
+                client_hardware_address.get(4),
+                client_hardware_address.get(5),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
+            options: Vec::new(),
+        }
+    }
+
     pub fn parse(packet: &[u8]) -> Result<Self, PacketParseError> {
         if packet.len() < 241 {
             return Err(PacketParseError::TooShort(packet.len()));
@@ -98,6 +141,10 @@ impl DHCPPacket {
         }
     }
 
+    pub fn add_option(&mut self, option_class: DHCPOptionClass, value: Vec<u8>) {
+        self.options.push(DHCPOption::new(option_class, value))
+    }
+
     pub fn message_type(&self) -> MessageType {
         self.message_type
     }
@@ -110,8 +157,20 @@ impl DHCPPacket {
         self.hardware_address_length
     }
 
+    pub fn transaction_id(&self) -> u32 {
+        self.transaction_id
+    }
+
     pub fn client_ip_address(&self) -> IPAddress {
         self.client_ip_address
+    }
+
+    pub fn gateway_ip_address(&self) -> IPAddress {
+        self.gateway_ip_address
+    }
+
+    pub fn flags(&self) -> u16 {
+        self.flags
     }
 
     pub fn client_hardware_address(&self) -> &[u8; 16] {
