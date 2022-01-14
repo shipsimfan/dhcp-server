@@ -1,5 +1,5 @@
 use super::{DHCPOption, DHCPOptionClass, HardwareType, MessageType};
-use crate::{IPAddress, MACAdddress};
+use crate::IPAddress;
 
 pub struct DHCPPacket {
     message_type: MessageType,
@@ -34,7 +34,7 @@ impl DHCPPacket {
         your_ip_address: IPAddress,
         server_ip_address: IPAddress,
         gateway_ip_address: IPAddress,
-        client_hardware_address: MACAdddress,
+        client_hardware_address: [u8; 16],
     ) -> Self {
         DHCPPacket {
             message_type: MessageType::Reply,
@@ -48,24 +48,7 @@ impl DHCPPacket {
             your_ip_address,
             server_ip_address,
             gateway_ip_address,
-            client_hardware_address: [
-                client_hardware_address.get(0),
-                client_hardware_address.get(1),
-                client_hardware_address.get(2),
-                client_hardware_address.get(3),
-                client_hardware_address.get(4),
-                client_hardware_address.get(5),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
+            client_hardware_address,
             options: Vec::new(),
         }
     }
@@ -83,9 +66,9 @@ impl DHCPPacket {
         let hardware_type = HardwareType::parse(packet[1]);
         let hardware_address_length = packet[2];
         let hops = packet[3];
-        let transaction_id = super::slice_to_u32(&packet[4..]);
-        let seconds = super::slice_to_u16(&packet[8..]);
-        let flags = super::slice_to_u16(&packet[10..]);
+        let transaction_id = crate::slice_to_u32(&packet[4..]);
+        let seconds = crate::slice_to_u16(&packet[8..]);
+        let flags = crate::slice_to_u16(&packet[10..]);
         let client_ip_address = IPAddress::new([packet[12], packet[13], packet[14], packet[15]]);
         let your_ip_address = IPAddress::new([packet[16], packet[17], packet[18], packet[19]]);
         let server_ip_address = IPAddress::new([packet[20], packet[21], packet[22], packet[23]]);
@@ -141,8 +124,9 @@ impl DHCPPacket {
         }
     }
 
-    pub fn add_option(&mut self, option_class: DHCPOptionClass, value: Vec<u8>) {
-        self.options.push(DHCPOption::new(option_class, value))
+    pub fn add_option(&mut self, option_class: DHCPOptionClass, value: &[u8]) {
+        self.options
+            .push(DHCPOption::new(option_class, Vec::from(value)))
     }
 
     pub fn message_type(&self) -> MessageType {
@@ -197,9 +181,9 @@ impl DHCPPacket {
         ];
 
         // Multibyte parameters
-        vec.extend_from_slice(&super::u32_to_slice(self.transaction_id));
-        vec.extend_from_slice(&super::u16_to_slice(self.seconds));
-        vec.extend_from_slice(&super::u16_to_slice(self.flags));
+        vec.extend_from_slice(&crate::u32_to_slice(self.transaction_id));
+        vec.extend_from_slice(&crate::u16_to_slice(self.seconds));
+        vec.extend_from_slice(&crate::u16_to_slice(self.flags));
         vec.extend_from_slice(self.client_ip_address.as_slice());
         vec.extend_from_slice(self.your_ip_address.as_slice());
         vec.extend_from_slice(self.server_ip_address.as_slice());

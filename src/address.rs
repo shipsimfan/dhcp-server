@@ -1,8 +1,10 @@
+use std::net::SocketAddr;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IPAddress([u8; 4]);
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MACAdddress([u8; 6]);
+pub struct MACAddress([u8; 6]);
 
 impl IPAddress {
     pub const fn new(address: [u8; 4]) -> Self {
@@ -11,6 +13,10 @@ impl IPAddress {
 
     pub fn as_slice(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_socket_addr(&self, port: u16) -> SocketAddr {
+        SocketAddr::from((self.0, port))
     }
 
     pub fn increament(&mut self) {
@@ -46,10 +52,6 @@ impl IPAddress {
             self.increament();
         }
     }
-
-    pub fn get(&self, index: usize) -> u8 {
-        self.0[index]
-    }
 }
 
 impl std::fmt::Display for IPAddress {
@@ -82,17 +84,17 @@ impl std::cmp::Ord for IPAddress {
     }
 }
 
-impl MACAdddress {
+impl MACAddress {
     pub const fn new(address: [u8; 6]) -> Self {
-        MACAdddress(address)
+        MACAddress(address)
     }
 
-    pub fn get(&self, index: usize) -> u8 {
-        self.0[index]
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
     }
 }
 
-impl std::fmt::Display for MACAdddress {
+impl std::fmt::Display for MACAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

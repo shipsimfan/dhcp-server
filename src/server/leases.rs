@@ -1,9 +1,9 @@
-use crate::{IPAddress, MACAdddress};
+use crate::{IPAddress, MACAddress};
 use std::{collections::HashMap, time::Instant};
 
 pub struct Leases {
-    leases: HashMap<IPAddress, (MACAdddress, Instant)>,
-    offers: HashMap<IPAddress, Instant>,
+    leases: HashMap<IPAddress, (MACAddress, Instant)>,
+    offers: HashMap<IPAddress, (MACAddress, Instant)>,
     next_available_ip: Option<IPAddress>,
 }
 
@@ -20,7 +20,7 @@ impl Leases {
         // TODO: implement clearing expired leases & offers
     }
 
-    pub fn allocate(&mut self) -> Option<IPAddress> {
+    pub fn allocate(&mut self, mac_address: MACAddress) -> Option<IPAddress> {
         let ret = match self.next_available_ip {
             Some(ip) => ip,
             None => return None,
@@ -45,32 +45,51 @@ impl Leases {
         }
 
         // Reserve the offer
-        self.offers.insert(ret, Instant::now());
+        self.offers.insert(ret, (mac_address, Instant::now()));
 
         Some(ret)
     }
 
-    pub fn get_ip_address(&self, mac_address: MACAdddress) -> Option<IPAddress> {
-        let mut ip_address = crate::config::LEASE_START_IP;
-        while ip_address <= crate::config::LEASE_FINAL_IP {
-            match self.leases.get(&ip_address) {
-                Some((lease_address, _)) => {
-                    if *lease_address == mac_address {
-                        return Some(ip_address);
-                    }
-                }
-                None => {}
-            }
+    pub fn accept_offer(&mut self, ip_address: IPAddress, mac_address: MACAddress) -> bool {
+        // Verify I.P. range
+        if ip_address < crate::config::LEASE_START_IP || ip_address > crate::config::LEASE_FINAL_IP
+        {
+            return false;
+        }
 
-            ip_address.increament();
+        // Check offers
+        match self.offers.get(&ip_address) {
+            Some((mac, _)) => {
+                if mac_address != *mac {
+                    return false;
+                }
+            }
+            None => {
+                // Check leases
+                match self.leases.get(&ip_address) {
+                    Some((mac, _)) => {
+                        if mac_address != *mac {
+                            return false;
+                        }
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        self.offers.remove(&ip_address);
+        self.leases
+            .insert(ip_address, (mac_address, Instant::now()));
+        true
+    }
+
+    pub fn get_ip_address(&self, mac_address: MACAddress) -> Option<IPAddress> {
+        for (ip, (mac, _)) in &self.leases {
+            if *mac == mac_address {
+                return Some(*ip);
+            }
         }
 
         None
-    }
-
-    pub fn get_mac_address(&self, ip_address: IPAddress) -> Option<MACAdddress> {
-        self.leases
-            .get(&ip_address)
-            .map(|(mac_address, _)| *mac_address)
     }
 }

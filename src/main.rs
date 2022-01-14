@@ -4,8 +4,10 @@ mod address;
 mod config;
 mod dhcp;
 mod server;
+mod util;
 
 pub use address::*;
+pub use util::*;
 
 #[derive(Debug)]
 enum RuntimeError {
@@ -20,7 +22,7 @@ enum RequestError {
     WriteResponseError(std::io::Error),
 }
 
-const PORT: u16 = 67;
+const BROADCAST_ADDRESS: IPAddress = IPAddress::new([255, 255, 255, 255]);
 
 fn print_fatal_error(error: RuntimeError) -> ! {
     eprintln!("\x1B[31;1mFatal Error:\x1B[0m {}", error);
@@ -43,7 +45,7 @@ fn run() -> Result<(), RuntimeError> {
     let mut server = server::DHCPServer::new();
 
     // Create UDP Server
-    let mut socket = match UdpSocket::bind(format!("0.0.0.0:{}", PORT)) {
+    let mut socket = match UdpSocket::bind(format!("0.0.0.0:{}", server::DHCP_SERVER_PORT)) {
         Ok(socket) => socket,
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
@@ -53,7 +55,7 @@ fn run() -> Result<(), RuntimeError> {
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
 
-    println!("DHCP Server listening on port {}", PORT);
+    println!("DHCP Server listening on port {}", server::DHCP_SERVER_PORT);
 
     // Handle requests
     loop {
@@ -70,7 +72,7 @@ fn handle_request(
 ) -> Result<(), RequestError> {
     // Read packet
     let mut buffer = [0; 576];
-    let (packet_size, source) = match socket.recv_from(&mut buffer) {
+    let (packet_size, _) = match socket.recv_from(&mut buffer) {
         Ok(result) => result,
         Err(error) => return Err(RequestError::ReadRequestError(error)),
     };
@@ -88,7 +90,7 @@ fn handle_request(
                 response_packet.generate().as_slice(),
                 match target {
                     Some(target) => target,
-                    None => source,
+                    None => BROADCAST_ADDRESS.to_socket_addr(server::DHCP_CLIENT_PORT),
                 },
             ) {
                 Ok(_) => {}
