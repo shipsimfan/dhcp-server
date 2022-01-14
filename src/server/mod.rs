@@ -10,6 +10,12 @@ mod leases;
 pub struct DHCPServer {
     leases: Leases,
     reserved: HashMap<MACAddress, IPAddress>,
+    our_ip: IPAddress,
+    gateway_ip: IPAddress,
+    subnet_mask: IPAddress,
+    broadcast_address: IPAddress,
+    dns: IPAddress,
+    dns_alternative: IPAddress,
 }
 
 #[derive(Debug)]
@@ -38,15 +44,23 @@ const DHCP_MESSAGE_TYPE_RELEASE: u8 = 7;
 const DHCP_MESSAGE_TYPE_INFORM: u8 = 8;
 
 impl DHCPServer {
-    pub fn new() -> Self {
+    pub fn new(configuration: crate::config::Configuration) -> Self {
         let mut reserved = HashMap::new();
-        for (mac, ip) in crate::config::RESERVED_IPS {
-            reserved.insert(mac, ip);
+        for (mac, ip) in configuration.reserved_ips() {
+            reserved.insert(*mac, *ip);
         }
 
+        let (dns, dns_alternative) = configuration.dns();
+
         DHCPServer {
-            leases: Leases::new(),
+            leases: Leases::new(&configuration),
             reserved,
+            our_ip: configuration.our_ip(),
+            gateway_ip: configuration.gateway_ip(),
+            subnet_mask: configuration.subnet_mask(),
+            broadcast_address: configuration.broadcast_address(),
+            dns,
+            dns_alternative,
         }
     }
 
@@ -189,42 +203,33 @@ impl DHCPServer {
             packet.flags(),
             IPAddress::new([0, 0, 0, 0]),
             return_ip,
-            crate::config::OUR_IP,
+            self.our_ip,
             packet.gateway_ip_address(),
             *packet.client_hardware_address(),
         );
 
         packet.add_option(DHCPOptionClass::DHCPMsgType, &[DHCP_MESSAGE_TYPE_OFFER]);
-        packet.add_option(
-            DHCPOptionClass::DHCPServerID,
-            crate::config::OUR_IP.as_slice(),
-        );
+        packet.add_option(DHCPOptionClass::DHCPServerID, self.our_ip.as_slice());
         packet.add_option(
             DHCPOptionClass::AddressTime,
-            &u32_to_slice(crate::config::ADDRESS_TIME),
+            &u32_to_slice(self.leases.address_time()),
         );
         packet.add_option(
             DHCPOptionClass::RenewalTime,
-            &u32_to_slice(crate::config::RENEWAL_TIME),
+            &u32_to_slice(self.leases.renewal_time()),
         );
         packet.add_option(
             DHCPOptionClass::RebindingTime,
-            &u32_to_slice(crate::config::REBINDING_TIME),
+            &u32_to_slice(self.leases.rebinding_time()),
         ); // 1 Day, 18 Hours
-        packet.add_option(
-            DHCPOptionClass::SubnetMask,
-            crate::config::SUBNET_MASK.as_slice(),
-        );
+        packet.add_option(DHCPOptionClass::SubnetMask, self.subnet_mask.as_slice());
         packet.add_option(
             DHCPOptionClass::BroadcastAddress,
-            crate::config::BROADCAST_ADDRESS.as_slice(),
+            self.broadcast_address.as_slice(),
         );
-        packet.add_option(
-            DHCPOptionClass::Gateways,
-            crate::config::GATEWAY_IP.as_slice(),
-        );
-        let mut dns = Vec::from(crate::config::DNS.as_slice());
-        dns.extend_from_slice(crate::config::DNS_ALTERNATIVE.as_slice());
+        packet.add_option(DHCPOptionClass::Gateways, self.gateway_ip.as_slice());
+        let mut dns = Vec::from(self.dns.as_slice());
+        dns.extend_from_slice(self.dns_alternative.as_slice());
         packet.add_option(DHCPOptionClass::DomainServer, dns.as_slice());
         let mut client_id = vec![HardwareType::Ethernet.generate()];
         client_id.extend_from_slice(mac_address.as_slice());
@@ -324,46 +329,37 @@ impl DHCPServer {
                 Some(address) => address,
                 None => IPAddress::new([0, 0, 0, 0]),
             },
-            crate::config::OUR_IP,
+            self.our_ip,
             request_packet.gateway_ip_address(),
             *request_packet.client_hardware_address(),
         );
 
         packet.add_option(DHCPOptionClass::DHCPMsgType, &[DHCP_MESSAGE_TYPE_ACK]);
-        packet.add_option(
-            DHCPOptionClass::DHCPServerID,
-            crate::config::OUR_IP.as_slice(),
-        );
+        packet.add_option(DHCPOptionClass::DHCPServerID, self.our_ip.as_slice());
 
         if requested_address.is_some() {
             packet.add_option(
                 DHCPOptionClass::AddressTime,
-                &u32_to_slice(crate::config::ADDRESS_TIME),
+                &u32_to_slice(self.leases.address_time()),
             );
             packet.add_option(
                 DHCPOptionClass::RenewalTime,
-                &u32_to_slice(crate::config::RENEWAL_TIME),
+                &u32_to_slice(self.leases.renewal_time()),
             );
             packet.add_option(
                 DHCPOptionClass::RebindingTime,
-                &u32_to_slice(crate::config::REBINDING_TIME),
+                &u32_to_slice(self.leases.rebinding_time()),
             );
         }
 
-        packet.add_option(
-            DHCPOptionClass::SubnetMask,
-            crate::config::SUBNET_MASK.as_slice(),
-        );
+        packet.add_option(DHCPOptionClass::SubnetMask, self.subnet_mask.as_slice());
         packet.add_option(
             DHCPOptionClass::BroadcastAddress,
-            crate::config::BROADCAST_ADDRESS.as_slice(),
+            self.broadcast_address.as_slice(),
         );
-        packet.add_option(
-            DHCPOptionClass::Gateways,
-            crate::config::GATEWAY_IP.as_slice(),
-        );
-        let mut dns = Vec::from(crate::config::DNS.as_slice());
-        dns.extend_from_slice(crate::config::DNS_ALTERNATIVE.as_slice());
+        packet.add_option(DHCPOptionClass::Gateways, self.gateway_ip.as_slice());
+        let mut dns = Vec::from(self.dns.as_slice());
+        dns.extend_from_slice(self.dns_alternative.as_slice());
         packet.add_option(DHCPOptionClass::DomainServer, dns.as_slice());
         let mut client_id = vec![HardwareType::Ethernet.generate()];
         client_id.extend_from_slice(mac_address.as_slice());
@@ -417,10 +413,7 @@ impl DHCPServer {
         );
 
         packet.add_option(DHCPOptionClass::DHCPMsgType, &[DHCP_MESSAGE_TYPE_NACK]);
-        packet.add_option(
-            DHCPOptionClass::DHCPServerID,
-            crate::config::OUR_IP.as_slice(),
-        );
+        packet.add_option(DHCPOptionClass::DHCPServerID, self.our_ip.as_slice());
         packet.add_option(DHCPOptionClass::ClientID, mac_address.as_slice());
         packet.add_option(DHCPOptionClass::End, &[]);
 

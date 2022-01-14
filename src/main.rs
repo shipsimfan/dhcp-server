@@ -12,6 +12,7 @@ pub use util::*;
 #[derive(Debug)]
 enum RuntimeError {
     CreateServerError(std::io::Error),
+    LoadConfigurationError(config::ConfigurationError),
 }
 
 #[derive(Debug)]
@@ -41,8 +42,13 @@ fn main() {
 }
 
 fn run() -> Result<(), RuntimeError> {
+    // Load configuration
+    let configuration = config::load_configuration()?;
+
+    println!("{}", configuration);
+
     // Create DHCP Server
-    let mut server = server::DHCPServer::new();
+    let mut server = server::DHCPServer::new(configuration);
 
     // Create UDP Server
     let mut socket = match UdpSocket::bind(format!("0.0.0.0:{}", server::DHCP_SERVER_PORT)) {
@@ -113,6 +119,8 @@ impl std::fmt::Display for RuntimeError {
             match self {
                 RuntimeError::CreateServerError(error) =>
                     format!("Unable to create server ({})", error),
+                RuntimeError::LoadConfigurationError(error) =>
+                    format!("Error while loading configuration - {}", error),
             }
         )
     }
@@ -146,5 +154,11 @@ impl From<dhcp::PacketParseError> for RequestError {
 impl From<server::HandlePacketError> for RequestError {
     fn from(error: server::HandlePacketError) -> Self {
         RequestError::HandlePacketError(error)
+    }
+}
+
+impl From<config::ConfigurationError> for RuntimeError {
+    fn from(error: config::ConfigurationError) -> Self {
+        RuntimeError::LoadConfigurationError(error)
     }
 }

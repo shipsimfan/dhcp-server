@@ -8,24 +8,36 @@ pub struct Leases {
     leases: HashMap<IPAddress, (MACAddress, Instant)>,
     offers: HashMap<IPAddress, (MACAddress, Instant)>,
     next_available_ip: Option<IPAddress>,
+    start: IPAddress,
+    end: IPAddress,
+    offer_time: u64,
+    address_time: u32,
+    renewal_time: u32,
+    rebinding_time: u32,
 }
 
 impl Leases {
-    pub fn new() -> Self {
+    pub fn new(configuration: &crate::config::Configuration) -> Self {
         Leases {
             leases: HashMap::new(),
             offers: HashMap::new(),
-            next_available_ip: Some(crate::config::LEASE_START_IP),
+            next_available_ip: Some(configuration.lease_start_ip()),
+            start: configuration.lease_start_ip(),
+            end: configuration.lease_final_ip(),
+            address_time: configuration.address_time(),
+            renewal_time: configuration.renewal_time(),
+            rebinding_time: configuration.rebinding_time(),
+            offer_time: configuration.offer_time(),
         }
     }
 
     pub fn clean_leases(&mut self) {
         self.offers.retain(|_, (_, offer_time)| {
-            offer_time.elapsed() < Duration::from_secs(crate::config::OFFER_TIME)
+            offer_time.elapsed() < Duration::from_secs(self.offer_time)
         });
 
         self.leases.retain(|_, (_, lease_time)| {
-            lease_time.elapsed() < Duration::from_secs(crate::config::ADDRESS_TIME as u64)
+            lease_time.elapsed() < Duration::from_secs(self.address_time as u64)
         });
     }
 
@@ -38,7 +50,7 @@ impl Leases {
         // Search for next available I.P.
         let mut ip = ret;
         self.next_available_ip = None;
-        while ip <= crate::config::LEASE_FINAL_IP {
+        while ip <= self.end {
             match self.leases.get(&ip) {
                 Some(_) => {}
                 None => match self.offers.get(&ip) {
@@ -61,8 +73,7 @@ impl Leases {
 
     pub fn accept_offer(&mut self, ip_address: IPAddress, mac_address: MACAddress) -> bool {
         // Verify I.P. range
-        if ip_address < crate::config::LEASE_START_IP || ip_address > crate::config::LEASE_FINAL_IP
-        {
+        if ip_address < self.start || ip_address > self.end {
             return false;
         }
 
@@ -105,5 +116,17 @@ impl Leases {
     pub fn release(&mut self, ip_address: IPAddress, mac_address: MACAddress) {
         self.leases
             .retain(|ip, (mac, _)| *ip != ip_address || *mac != mac_address)
+    }
+
+    pub fn address_time(&self) -> u32 {
+        self.address_time
+    }
+
+    pub fn renewal_time(&self) -> u32 {
+        self.renewal_time
+    }
+
+    pub fn rebinding_time(&self) -> u32 {
+        self.rebinding_time
     }
 }
