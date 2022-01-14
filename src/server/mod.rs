@@ -22,6 +22,7 @@ pub enum HandlePacketError {
     InvalidRequestedAddressLength,
     NoRequestedIPInRequest,
     InvalidRenewAddress,
+    DeclineMessageRecieved,
 }
 
 pub const DHCP_SERVER_PORT: u16 = 67;
@@ -116,17 +117,13 @@ impl DHCPServer {
             DHCP_MESSAGE_TYPE_REQUEST => self
                 .handle_request_packet(packet, mac_address)
                 .map(|response| Some(response)),
-            DHCP_MESSAGE_TYPE_DECLINE => {
-                println!("Decline message recieved!");
-                Ok(None)
-            }
+            DHCP_MESSAGE_TYPE_DECLINE => Err(HandlePacketError::DeclineMessageRecieved),
             DHCP_MESSAGE_TYPE_RELEASE => {
-                println!("Release message recieved!");
+                self.leases.release(packet.client_ip_address(), mac_address);
                 Ok(None)
             }
             DHCP_MESSAGE_TYPE_INFORM => {
-                println!("Inform message recieved!");
-                Ok(None)
+                Ok(Some(self.generate_ack_packet(packet, None, mac_address)))
             }
             _ => Ok(None),
         }
@@ -261,7 +258,11 @@ impl DHCPServer {
                     match self.reserved.get(&mac_address) {
                         Some(ip) => {
                             if *ip == packet.client_ip_address() {
-                                return Ok(self.generate_ack_packet(packet, *ip, mac_address));
+                                return Ok(self.generate_ack_packet(
+                                    packet,
+                                    Some(*ip),
+                                    mac_address,
+                                ));
                             } else {
                                 return Err(HandlePacketError::InvalidRenewAddress);
                             }
@@ -274,7 +275,7 @@ impl DHCPServer {
                                 let requested_ip = packet.client_ip_address();
                                 return Ok(self.generate_ack_packet(
                                     packet,
-                                    requested_ip,
+                                    Some(requested_ip),
                                     mac_address,
                                 ));
                             } else {
@@ -292,7 +293,7 @@ impl DHCPServer {
                 // Has a reserved I.P. address
                 if requested_ip == *ip_address {
                     // Requesting reserved I.P. address
-                    return Ok(self.generate_ack_packet(packet, requested_ip, mac_address));
+                    return Ok(self.generate_ack_packet(packet, Some(requested_ip), mac_address));
                 } else {
                     // Requesting another I.P. address than one that is reserved
                     return Ok((self.generate_nack_packet(packet, mac_address), None));
@@ -303,7 +304,7 @@ impl DHCPServer {
 
         // Verify requested I.P. with leases
         if self.leases.accept_offer(requested_ip, mac_address) {
-            Ok(self.generate_ack_packet(packet, requested_ip, mac_address))
+            Ok(self.generate_ack_packet(packet, Some(requested_ip), mac_address))
         } else {
             Ok((self.generate_nack_packet(packet, mac_address), None))
         }
@@ -312,14 +313,17 @@ impl DHCPServer {
     fn generate_ack_packet(
         &self,
         request_packet: DHCPPacket,
-        requested_address: IPAddress,
+        requested_address: Option<IPAddress>,
         mac_address: MACAddress,
     ) -> (DHCPPacket, Option<SocketAddr>) {
         let mut packet = DHCPPacket::new(
             request_packet.transaction_id(),
             request_packet.flags(),
             request_packet.client_ip_address(),
-            requested_address,
+            match requested_address {
+                Some(address) => address,
+                None => IPAddress::new([0, 0, 0, 0]),
+            },
             crate::config::OUR_IP,
             request_packet.gateway_ip_address(),
             *request_packet.client_hardware_address(),
@@ -330,18 +334,22 @@ impl DHCPServer {
             DHCPOptionClass::DHCPServerID,
             crate::config::OUR_IP.as_slice(),
         );
-        packet.add_option(
-            DHCPOptionClass::AddressTime,
-            &u32_to_slice(crate::config::ADDRESS_TIME),
-        );
-        packet.add_option(
-            DHCPOptionClass::RenewalTime,
-            &u32_to_slice(crate::config::RENEWAL_TIME),
-        );
-        packet.add_option(
-            DHCPOptionClass::RebindingTime,
-            &u32_to_slice(crate::config::REBINDING_TIME),
-        );
+
+        if requested_address.is_some() {
+            packet.add_option(
+                DHCPOptionClass::AddressTime,
+                &u32_to_slice(crate::config::ADDRESS_TIME),
+            );
+            packet.add_option(
+                DHCPOptionClass::RenewalTime,
+                &u32_to_slice(crate::config::RENEWAL_TIME),
+            );
+            packet.add_option(
+                DHCPOptionClass::RebindingTime,
+                &u32_to_slice(crate::config::REBINDING_TIME),
+            );
+        }
+
         packet.add_option(
             DHCPOptionClass::SubnetMask,
             crate::config::SUBNET_MASK.as_slice(),
@@ -364,22 +372,31 @@ impl DHCPServer {
 
         (
             packet,
-            if request_packet.gateway_ip_address() != IPAddress::new([0, 0, 0, 0]) {
-                Some(
-                    request_packet
-                        .gateway_ip_address()
-                        .to_socket_addr(DHCP_SERVER_PORT),
-                )
-            } else {
-                if request_packet.client_ip_address() != IPAddress::new([0, 0, 0, 0]) {
-                    Some(
-                        request_packet
-                            .client_ip_address()
-                            .to_socket_addr(DHCP_CLIENT_PORT),
-                    )
-                } else {
-                    None
+            match requested_address {
+                Some(_) => {
+                    if request_packet.gateway_ip_address() != IPAddress::new([0, 0, 0, 0]) {
+                        Some(
+                            request_packet
+                                .gateway_ip_address()
+                                .to_socket_addr(DHCP_SERVER_PORT),
+                        )
+                    } else {
+                        if request_packet.client_ip_address() != IPAddress::new([0, 0, 0, 0]) {
+                            Some(
+                                request_packet
+                                    .client_ip_address()
+                                    .to_socket_addr(DHCP_CLIENT_PORT),
+                            )
+                        } else {
+                            None
+                        }
+                    }
                 }
+                None => Some(
+                    request_packet
+                        .client_ip_address()
+                        .to_socket_addr(DHCP_CLIENT_PORT),
+                ),
             },
         )
     }
@@ -432,6 +449,7 @@ impl std::fmt::Display for HandlePacketError {
                 HandlePacketError::NoRequestedIPInRequest =>
                     format!("No requested address in request"),
                 HandlePacketError::InvalidRenewAddress => format!("Invalid renew address"),
+                HandlePacketError::DeclineMessageRecieved => format!("Decline packet recieved"),
             }
         )
     }

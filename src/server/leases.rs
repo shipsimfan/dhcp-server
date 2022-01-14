@@ -101,4 +101,9 @@ impl Leases {
 
         None
     }
+
+    pub fn release(&mut self, ip_address: IPAddress, mac_address: MACAddress) {
+        self.leases
+            .retain(|ip, (mac, _)| *ip != ip_address || *mac != mac_address)
+    }
 }
