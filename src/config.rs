@@ -27,3 +27,4 @@ pub const RESERVED_IPS: [(MACAddress, IPAddress); 3] = [
 pub const ADDRESS_TIME: u32 = 60 * 60 * 48; // 2 Days
 pub const RENEWAL_TIME: u32 = 60 * 60 * 24; // 1 Day
 pub const REBINDING_TIME: u32 = 60 * 60 * 36; // 1 Day 18 Hours
+pub const OFFER_TIME: u64 = 30; // 30 Seconds

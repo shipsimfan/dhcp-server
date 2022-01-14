@@ -1,5 +1,8 @@
 use crate::{IPAddress, MACAddress};
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 pub struct Leases {
     leases: HashMap<IPAddress, (MACAddress, Instant)>,
@@ -17,7 +20,13 @@ impl Leases {
     }
 
     pub fn clean_leases(&mut self) {
-        // TODO: implement clearing expired leases & offers
+        self.offers.retain(|_, (_, offer_time)| {
+            offer_time.elapsed() < Duration::from_secs(crate::config::OFFER_TIME)
+        });
+
+        self.leases.retain(|_, (_, lease_time)| {
+            lease_time.elapsed() < Duration::from_secs(crate::config::ADDRESS_TIME as u64)
+        });
     }
 
     pub fn allocate(&mut self, mac_address: MACAddress) -> Option<IPAddress> {
