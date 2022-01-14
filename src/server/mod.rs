@@ -21,6 +21,7 @@ pub enum HandlePacketError {
     NoIPAddressesAvailable,
     InvalidRequestedAddressLength,
     NoRequestedIPInRequest,
+    InvalidRenewAddress,
 }
 
 pub const DHCP_SERVER_PORT: u16 = 67;
@@ -250,7 +251,39 @@ impl DHCPServer {
                     IPAddress::new([value[0], value[1], value[2], value[3]])
                 }
             }
-            None => return Err(HandlePacketError::NoRequestedIPInRequest),
+            None => {
+                if packet.client_ip_address() == IPAddress::new([0, 0, 0, 0]) {
+                    return Err(HandlePacketError::NoRequestedIPInRequest);
+                } else {
+                    // Renewing / Rebinding
+
+                    // Verify client i.p. before responding
+                    match self.reserved.get(&mac_address) {
+                        Some(ip) => {
+                            if *ip == packet.client_ip_address() {
+                                return Ok(self.generate_ack_packet(packet, *ip, mac_address));
+                            } else {
+                                return Err(HandlePacketError::InvalidRenewAddress);
+                            }
+                        }
+                        None => {
+                            if self
+                                .leases
+                                .accept_offer(packet.client_ip_address(), mac_address)
+                            {
+                                let requested_ip = packet.client_ip_address();
+                                return Ok(self.generate_ack_packet(
+                                    packet,
+                                    requested_ip,
+                                    mac_address,
+                                ));
+                            } else {
+                                return Err(HandlePacketError::InvalidRenewAddress);
+                            }
+                        }
+                    }
+                }
+            }
         };
 
         // See if client has reserved I.P. Address
@@ -398,6 +431,7 @@ impl std::fmt::Display for HandlePacketError {
                     format!("Invalid requested address length"),
                 HandlePacketError::NoRequestedIPInRequest =>
                     format!("No requested address in request"),
+                HandlePacketError::InvalidRenewAddress => format!("Invalid renew address"),
             }
         )
     }
