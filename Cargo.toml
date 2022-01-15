@@ -7,5 +7,4 @@ version = "0.1.0"
 
 [dependencies]
 config = {git = "https://github.com/shipsimfan/lib-config.git", branch = "main"}
-#logging = {git = "https://github.com/shipsimfan/lib-logging.git", branch = "main"}
-logging = {path = "../lib-logging"}
+logging = {git = "https://github.com/shipsimfan/lib-logging.git", branch = "main"}
