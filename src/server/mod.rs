@@ -68,6 +68,8 @@ impl DHCPServer {
         &mut self,
         packet: DHCPPacket,
     ) -> Result<Option<(DHCPPacket, Option<SocketAddr>)>, HandlePacketError> {
+        let logger = logging::get_logger(module_path!());
+
         // Ignore reply messages
         if packet.message_type() == MessageType::Reply {
             return Ok(None);
@@ -110,6 +112,7 @@ impl DHCPServer {
         // Parse packet type
         match packet_type {
             DHCP_MESSAGE_TYPE_DISCOVER => {
+                logging::info!(logger, "Recieved DISCOVER packet from {}", mac_address);
                 self.handle_discover_packet(&packet, mac_address)
                     .map(move |response_packet| {
                         Some((
@@ -128,15 +131,25 @@ impl DHCPServer {
                         ))
                     })
             }
-            DHCP_MESSAGE_TYPE_REQUEST => self
-                .handle_request_packet(packet, mac_address)
-                .map(|response| Some(response)),
+            DHCP_MESSAGE_TYPE_REQUEST => {
+                logging::info!(logger, "Recieved REQUEST packet from {}", mac_address);
+                self.handle_request_packet(packet, mac_address)
+                    .map(|response| Some(response))
+            }
             DHCP_MESSAGE_TYPE_DECLINE => Err(HandlePacketError::DeclineMessageRecieved),
             DHCP_MESSAGE_TYPE_RELEASE => {
+                logging::info!(logger, "Recieved RELEASE packet from {}", mac_address);
+                logging::info!(
+                    logger,
+                    "{} released {}",
+                    mac_address,
+                    packet.client_ip_address()
+                );
                 self.leases.release(packet.client_ip_address(), mac_address);
                 Ok(None)
             }
             DHCP_MESSAGE_TYPE_INFORM => {
+                logging::info!(logger, "Recieved INFORM packet from {}", mac_address);
                 Ok(Some(self.generate_ack_packet(packet, None, mac_address)))
             }
             _ => Ok(None),
@@ -148,6 +161,8 @@ impl DHCPServer {
         packet: &DHCPPacket,
         mac_address: MACAddress,
     ) -> Result<DHCPPacket, HandlePacketError> {
+        let logger = logging::get_logger(module_path!());
+
         // Select an address for the new client
         let mut return_ip = None;
 
@@ -190,7 +205,15 @@ impl DHCPServer {
                 match reserved_ip {
                     Some(ip) => ip,
                     None => match self.leases.allocate(mac_address) {
-                        Some(ip) => ip,
+                        Some(ip) => {
+                            logging::info!(
+                                logger,
+                                "Creating lease offer for {} to {}",
+                                ip,
+                                mac_address
+                            );
+                            ip
+                        }
                         None => return Err(HandlePacketError::NoIPAddressesAvailable),
                     },
                 }
@@ -198,6 +221,8 @@ impl DHCPServer {
         };
 
         // Send offer
+        logging::info!(logger, "Offering {} to {}", return_ip, mac_address);
+
         let mut packet = DHCPPacket::new(
             packet.transaction_id(),
             packet.flags(),
@@ -244,6 +269,8 @@ impl DHCPServer {
         packet: DHCPPacket,
         mac_address: MACAddress,
     ) -> Result<(DHCPPacket, Option<SocketAddr>), HandlePacketError> {
+        let logger = logging::get_logger(module_path!());
+
         // Get requested I.P. address
         let requested_ip = match packet.get_option(DHCPOptionClass::AddressRequest) {
             Some(value) => {
@@ -258,6 +285,12 @@ impl DHCPServer {
                     return Err(HandlePacketError::NoRequestedIPInRequest);
                 } else {
                     // Renewing / Rebinding
+                    logging::info!(
+                        logger,
+                        "{} attempting to renew lease for {}",
+                        mac_address,
+                        packet.client_ip_address()
+                    );
 
                     // Verify client i.p. before responding
                     match self.reserved.get(&mac_address) {
@@ -301,6 +334,12 @@ impl DHCPServer {
                     return Ok(self.generate_ack_packet(packet, Some(requested_ip), mac_address));
                 } else {
                     // Requesting another I.P. address than one that is reserved
+                    logging::warning!(
+                        logger,
+                        "{} requested {} which is not their reserved address",
+                        mac_address,
+                        requested_ip
+                    );
                     return Ok((self.generate_nack_packet(packet, mac_address), None));
                 }
             }
@@ -309,8 +348,20 @@ impl DHCPServer {
 
         // Verify requested I.P. with leases
         if self.leases.accept_offer(requested_ip, mac_address) {
+            logging::info!(
+                logger,
+                "{} accepted lease for {}",
+                mac_address,
+                requested_ip
+            );
             Ok(self.generate_ack_packet(packet, Some(requested_ip), mac_address))
         } else {
+            logging::warning!(
+                logger,
+                "{} requested {} which is an invalid address",
+                mac_address,
+                requested_ip
+            );
             Ok((self.generate_nack_packet(packet, mac_address), None))
         }
     }

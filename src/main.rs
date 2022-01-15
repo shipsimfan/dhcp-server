@@ -1,4 +1,4 @@
-use std::{net::UdpSocket, process::exit};
+use std::net::UdpSocket;
 
 mod address;
 mod config;
@@ -25,25 +25,44 @@ enum RequestError {
 
 const BROADCAST_ADDRESS: IPAddress = IPAddress::new([255, 255, 255, 255]);
 
-fn print_fatal_error(error: RuntimeError) -> ! {
-    eprintln!("\x1B[31;1mFatal Error:\x1B[0m {}", error);
-    exit(1);
-}
-
-fn print_request_error(error: RequestError) {
-    eprintln!("\x1B[31;1mError with client:\x1B[0m {}", error);
+fn log_formatter(record: &logging::Record) -> String {
+    format!(
+        "{} | {} | {} | {}",
+        record.level(),
+        record.timestamp().to_rfc2822(),
+        record.name(),
+        record.message()
+    )
 }
 
 fn main() {
+    // Prepare logging formatter & console output for early errors
+    {
+        let root_logger = logging::get_logger("");
+        root_logger.remove_handler(0);
+        root_logger.set_level(Some(logging::LogLevel::Informational));
+
+        let mut handler = logging::Handler::new(logging::ConsoleHandler::new());
+        handler.set_formatter(Some(log_formatter));
+
+        root_logger.add_handler(handler);
+    }
+
     match run() {
         Ok(()) => {}
-        Err(error) => print_fatal_error(error),
+        Err(error) => {
+            let logger = logging::get_logger(module_path!());
+            logging::critical!(logger, "{}", error);
+        }
     }
 }
 
 fn run() -> Result<(), RuntimeError> {
+    let logger = logging::get_logger(module_path!());
+
     // Load configuration
     let configuration = config::load_configuration()?;
+    logging::info!(logger, "Configuration loaded");
 
     // Create DHCP Server
     let mut server = server::DHCPServer::new(configuration);
@@ -59,13 +78,17 @@ fn run() -> Result<(), RuntimeError> {
         Err(error) => return Err(RuntimeError::CreateServerError(error)),
     };
 
-    println!("DHCP Server listening on port {}", server::DHCP_SERVER_PORT);
+    logging::info!(
+        logger,
+        "Server listening on port {}",
+        server::DHCP_SERVER_PORT
+    );
 
     // Handle requests
     loop {
         match handle_request(&mut socket, &mut server) {
             Ok(()) => {}
-            Err(error) => print_request_error(error),
+            Err(error) => logging::error!(logger, "{}", error),
         }
     }
 }

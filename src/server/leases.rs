@@ -32,12 +32,24 @@ impl Leases {
     }
 
     pub fn clean_leases(&mut self) {
-        self.offers.retain(|_, (_, offer_time)| {
-            offer_time.elapsed() < Duration::from_secs(self.offer_time)
+        let logger = logging::get_logger(module_path!());
+
+        self.offers.retain(|ip, (mac, offer_time)| {
+            if offer_time.elapsed() < Duration::from_secs(self.offer_time) {
+                true
+            } else {
+                logging::info!(logger, "Removed lease for {} to {} due to expiry", ip, mac);
+                false
+            }
         });
 
-        self.leases.retain(|_, (_, lease_time)| {
-            lease_time.elapsed() < Duration::from_secs(self.address_time as u64)
+        self.leases.retain(|ip, (mac, lease_time)| {
+            if lease_time.elapsed() < Duration::from_secs(self.address_time as u64) {
+                true
+            } else {
+                logging::info!(logger, "Removed offer for {} to {} due to expiry", ip, mac);
+                false
+            }
         });
     }
 

@@ -33,6 +33,7 @@ pub enum ConfigurationError {
     NoDNS,
     NoAlternativeDNS,
     NoReservedIP(MACAddress),
+    OpenLogFileError(String, std::io::Error),
 }
 
 const DEFAULT_ADDRESS_TIME: u32 = 60 * 60 * 48; // 2 Days
@@ -168,6 +169,24 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         None => DEFAULT_OFFER_TIME,
     };
 
+    // Update logging output
+    match configuration.get("log") {
+        Some(file) => {
+            let root_logger = logging::get_logger("");
+            let mut handler = logging::Handler::new(match logging::FileHandler::new(file) {
+                Ok(handler) => handler,
+                Err(error) => {
+                    return Err(ConfigurationError::OpenLogFileError(file.to_owned(), error))
+                }
+            });
+            handler.set_formatter(Some(super::log_formatter));
+
+            root_logger.remove_handler(0);
+            root_logger.add_handler(handler);
+        }
+        None => {}
+    }
+
     Ok(Configuration {
         lease_start_ip,
         lease_final_ip,
@@ -283,6 +302,8 @@ impl std::fmt::Display for ConfigurationError {
                     "Reserved MAC Address has no match I.P. address ({})",
                     address
                 ),
+                ConfigurationError::OpenLogFileError(file, error) =>
+                    format!("Unable to open log file \"{}\" ({})", file, error),
             }
         )
     }
