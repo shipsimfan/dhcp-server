@@ -236,21 +236,6 @@ impl Configuration {
 }
 
 impl std::fmt::Display for Configuration {
-    /*
-            lease_start_ip,
-        lease_final_ip,
-        gateway_ip,
-        our_ip,
-        subnet_mask,
-        broadcast_address,
-        dns,
-        dns_alternative,
-        reserved_ips,
-        address_time,
-        renewal_time,
-        rebinding_time,
-        offer_time,
-    */
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "  Lease:")?;
         writeln!(f, "    Start: {}", self.lease_start_ip)?;

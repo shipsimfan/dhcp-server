@@ -45,6 +45,8 @@ fn run() -> Result<(), RuntimeError> {
     // Load configuration
     let configuration = config::load_configuration()?;
 
+    println!("{}", configuration);
+
     // Create DHCP Server
     let mut server = server::DHCPServer::new(configuration);
 
