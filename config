@@ -1,26 +1,29 @@
-[lease
-    start = 10.128.0.1
-    final = 10.255.255.254
-    time = 172800
-]
+# Lease Information
 
-gateway = 10.0.0.1
-us = 10.0.0.2
-subnet-mask = 255.0.0.0
-broadcast = 10.255.255.255
+lease {
+    start:	10.128.0.1
+    final:	10.255.255.254
+    time: 	172800 # 2 Days
+}
 
-[dns
-    1 = 1.1.1.1
-    2 = 1.0.0.1
-]
+# Network Information
 
-[reserved
-    [0
-        mac = 30:9C:23:44:17:9B
-        ip = 10.1.0.1
-    ]
-    [1
-        mac = B6:DC:06:A6:6C:19
-        ip = 10.1.0.2
-    ]
+gateway: 	10.0.0.1
+us: 		10.0.0.2
+subnet-mask: 	255.0.0.0
+broadcast: 	10.255.255.255
+
+dns { # Cloud Flare DNS
+    1: 1.1.1.1
+    2: 1.0.0.1
+}
+
+reserved [
+    {
+        mac: 30:9C:23:44:17:9B
+        ip: 10.1.0.1
+    }{
+        mac: B6:DC:06:A6:6C:19
+        ip: 10.1.0.2
+    }
 ]
