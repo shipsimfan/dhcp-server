@@ -44,7 +44,7 @@ const DHCP_MESSAGE_TYPE_RELEASE: u8 = 7;
 const DHCP_MESSAGE_TYPE_INFORM: u8 = 8;
 
 impl DHCPServer {
-    pub fn new(configuration: crate::config::Configuration) -> Self {
+    pub fn new(configuration: &crate::config::Configuration) -> Self {
         let mut reserved = HashMap::new();
         for (mac, ip) in configuration.reserved_ips() {
             reserved.insert(*mac, *ip);
@@ -62,6 +62,10 @@ impl DHCPServer {
             dns,
             dns_alternative,
         }
+    }
+
+    pub fn current_leases(&self) -> Vec<(IPAddress, MACAddress)> {
+        self.leases.current_leases()
     }
 
     pub fn handle_packet(

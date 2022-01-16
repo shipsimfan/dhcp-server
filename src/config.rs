@@ -16,6 +16,7 @@ pub struct Configuration {
     renewal_time: u32,
     rebinding_time: u32,
     offer_time: u64,
+    log_limit: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -24,6 +25,7 @@ pub enum ConfigurationError {
     InvalidIP(String),
     InvalidMAC(String),
     InvalidTime(std::num::ParseIntError),
+    InvalidLogLimit(String, std::num::ParseIntError),
     NoLeaseStartIP,
     NoLeaseEndIP,
     NoGatewayIP,
@@ -145,7 +147,7 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         None => DEFAULT_ADDRESS_TIME,
     };
 
-    let renewal_time = match configuration.get("renewal-time") {
+    let renewal_time = match configuration.get("renewal time") {
         Some(str) => match str.parse() {
             Ok(value) => value,
             Err(error) => return Err(ConfigurationError::InvalidTime(error)),
@@ -153,7 +155,7 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         None => address_time / 2,
     };
 
-    let rebinding_time = match configuration.get("rebinding-time") {
+    let rebinding_time = match configuration.get("rebinding time") {
         Some(str) => match str.parse() {
             Ok(value) => value,
             Err(error) => return Err(ConfigurationError::InvalidTime(error)),
@@ -161,12 +163,20 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         None => (renewal_time / 2) * 3,
     };
 
-    let offer_time = match configuration.get("offer-time") {
+    let offer_time = match configuration.get("offer time") {
         Some(str) => match str.parse() {
             Ok(value) => value,
             Err(error) => return Err(ConfigurationError::InvalidTime(error)),
         },
         None => DEFAULT_OFFER_TIME,
+    };
+
+    let log_limit = match configuration.get("log limit") {
+        Some(limit) => match limit.parse() {
+            Ok(value) => Some(value),
+            Err(error) => return Err(ConfigurationError::InvalidLogLimit(limit.to_owned(), error)),
+        },
+        None => None,
     };
 
     // Update logging output
@@ -201,6 +211,7 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         renewal_time,
         rebinding_time,
         offer_time,
+        log_limit,
     })
 }
 
@@ -252,6 +263,10 @@ impl Configuration {
     pub fn offer_time(&self) -> u64 {
         self.offer_time
     }
+
+    pub fn log_limit(&self) -> Option<usize> {
+        self.log_limit
+    }
 }
 
 impl std::fmt::Display for Configuration {
@@ -290,6 +305,8 @@ impl std::fmt::Display for ConfigurationError {
                 ConfigurationError::InvalidIP(str) => format!("Invalid I.P. address ({})", str),
                 ConfigurationError::InvalidMAC(str) => format!("Invalid MAC address ({})", str),
                 ConfigurationError::InvalidTime(str) => format!("Invalid time ({})", str),
+                ConfigurationError::InvalidLogLimit(str, error) =>
+                    format!("Invalid log limit \"{}\" ({})", str, error),
                 ConfigurationError::NoLeaseStartIP => format!("No lease start I.P. address"),
                 ConfigurationError::NoLeaseEndIP => format!("No lease end I.P. address"),
                 ConfigurationError::NoGatewayIP => format!("No gateway I.P. address"),

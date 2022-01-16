@@ -1,8 +1,12 @@
-use std::net::UdpSocket;
+use std::{
+    net::UdpSocket,
+    sync::{Mutex, Once},
+};
 
 mod address;
 mod config;
 mod dhcp;
+mod http_server;
 mod server;
 mod util;
 
@@ -24,6 +28,9 @@ enum RequestError {
 }
 
 const BROADCAST_ADDRESS: IPAddress = IPAddress::new([255, 255, 255, 255]);
+
+static DHCP_SERVER_INIT: Once = Once::new();
+static mut DHCP_SERVER: Option<Mutex<server::DHCPServer>> = None;
 
 fn log_formatter(record: &logging::Record) -> String {
     format!(
@@ -65,7 +72,12 @@ fn run() -> Result<(), RuntimeError> {
     logging::info!(logger, "Configuration loaded");
 
     // Create DHCP Server
-    let mut server = server::DHCPServer::new(configuration);
+    DHCP_SERVER_INIT.call_once(|| unsafe {
+        DHCP_SERVER = Some(Mutex::new(server::DHCPServer::new(&configuration)))
+    });
+
+    // Create HTTP Server
+    http_server::start(&configuration);
 
     // Create UDP Server
     let mut socket = match UdpSocket::bind(format!("0.0.0.0:{}", server::DHCP_SERVER_PORT)) {
@@ -86,7 +98,7 @@ fn run() -> Result<(), RuntimeError> {
 
     // Handle requests
     loop {
-        match handle_request(&mut socket, &mut server) {
+        match handle_request(&mut socket, unsafe { DHCP_SERVER.as_ref() }.unwrap()) {
             Ok(()) => {}
             Err(error) => logging::error!(logger, "{}", error),
         }
@@ -95,7 +107,7 @@ fn run() -> Result<(), RuntimeError> {
 
 fn handle_request(
     socket: &mut UdpSocket,
-    server: &mut server::DHCPServer,
+    server_lock: &Mutex<server::DHCPServer>,
 ) -> Result<(), RequestError> {
     // Read packet
     let mut buffer = [0; 576];
@@ -111,6 +123,7 @@ fn handle_request(
     let packet = dhcp::DHCPPacket::parse(buffer)?;
 
     // Handle packet
+    let mut server = server_lock.lock().unwrap();
     match server.handle_packet(packet)? {
         Some((response_packet, target)) => {
             match socket.send_to(

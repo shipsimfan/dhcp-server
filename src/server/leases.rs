@@ -141,4 +141,14 @@ impl Leases {
     pub fn rebinding_time(&self) -> u32 {
         self.rebinding_time
     }
+
+    pub fn current_leases(&self) -> Vec<(IPAddress, MACAddress)> {
+        let mut ret = Vec::new();
+
+        for (ip, (mac, _)) in &self.leases {
+            ret.push((*ip, *mac));
+        }
+
+        ret
+    }
 }
