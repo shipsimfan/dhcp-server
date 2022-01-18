@@ -10,7 +10,7 @@ lease {
 
 gateway: 	10.0.0.1
 us: 		10.0.0.2
-subnet-mask: 	255.0.0.0
+subnet mask: 	255.0.0.0
 broadcast: 	10.255.255.255
 
 dns { # Cloud Flare DNS

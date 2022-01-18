@@ -208,20 +208,14 @@ impl http::Server for ServerContainer {
         match request.header().method() {
             http::Method::Get => {
                 if request.header().uri() == "/style" {
-                    match std::fs::read_to_string("./style.css") {
-                        Ok(style) => {
-                            let mut response =
-                                http::Response::new_status(http::Status::Ok, Some(style));
-                            response
-                                .header_mut()
-                                .insert_header(format!("Content-Type"), format!("text/css"));
-                            response
-                        }
-                        Err(error) => http::Response::new_status(
-                            http::Status::InternalServerError,
-                            Some(format!("{}", error)),
-                        ),
-                    }
+                    let mut response = http::Response::new_status(
+                        http::Status::Ok,
+                        Some(include_str!("./style.css").to_owned()),
+                    );
+                    response
+                        .header_mut()
+                        .insert_header(format!("Content-Type"), format!("text/css"));
+                    response
                 } else {
                     self.0.as_ref().unwrap().lock().unwrap().handle_request()
                 }

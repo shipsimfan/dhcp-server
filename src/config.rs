@@ -84,7 +84,7 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
         None => return Err(ConfigurationError::NoOurIP),
     };
 
-    let subnet_mask = match configuration.get("subnet-mask") {
+    let subnet_mask = match configuration.get("subnet mask") {
         Some(str) => match IPAddress::parse(str) {
             Some(ip) => ip,
             None => return Err(ConfigurationError::InvalidIP(str.to_owned())),
@@ -160,7 +160,7 @@ pub fn load_configuration() -> Result<Configuration, ConfigurationError> {
             Ok(value) => value,
             Err(error) => return Err(ConfigurationError::InvalidTime(error)),
         },
-        None => (renewal_time / 2) * 3,
+        None => (address_time / 4) * 3,
     };
 
     let offer_time = match configuration.get("offer time") {
